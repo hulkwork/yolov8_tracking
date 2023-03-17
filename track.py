@@ -28,19 +28,18 @@ if str(ROOT / 'trackers' / 'strongsort') not in sys.path:
 
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-import logging
-from yolov8.ultralytics.nn.autobackend import AutoBackend
-from yolov8.ultralytics.yolo.data.dataloaders.stream_loaders import LoadImages, LoadStreams
-from yolov8.ultralytics.yolo.data.utils import IMG_FORMATS, VID_FORMATS
-from yolov8.ultralytics.yolo.utils import DEFAULT_CFG, LOGGER, SETTINGS, callbacks, colorstr, ops
-from yolov8.ultralytics.yolo.utils.checks import check_file, check_imgsz, check_imshow, print_args, check_requirements
-from yolov8.ultralytics.yolo.utils.files import increment_path
-from yolov8.ultralytics.yolo.utils.torch_utils import select_device
-from yolov8.ultralytics.yolo.utils.ops import Profile, non_max_suppression, scale_boxes, process_mask, process_mask_native
-from yolov8.ultralytics.yolo.utils.plotting import Annotator, colors, save_one_box
+from ultralytics.nn.autobackend import AutoBackend
+from ultralytics.yolo.data.dataloaders.stream_loaders import LoadImages, LoadStreams
+from ultralytics.yolo.data.utils import VID_FORMATS
+from ultralytics.yolo.utils import LOGGER, colorstr
+from ultralytics.yolo.utils.checks import check_file, check_imgsz, check_imshow, print_args, check_requirements
+from ultralytics.yolo.utils.files import increment_path
+from ultralytics.yolo.utils.torch_utils import select_device
+from ultralytics.yolo.utils.ops import Profile, non_max_suppression, scale_boxes, process_mask, process_mask_native
+from ultralytics.yolo.utils.plotting import Annotator, colors, save_one_box
 
 from trackers.multi_tracker_zoo import create_tracker
-
+from sender.jsonlogger import JsonLogger
 
 @torch.no_grad()
 def run(
@@ -80,7 +79,6 @@ def run(
 ):
 
     source = str(source)
-    save_img = not nosave and not source.endswith('.txt')  # save inference images
     is_file = Path(source).suffix[1:] in (VID_FORMATS)
     is_url = source.lower().startswith(('rtsp://', 'rtmp://', 'http://', 'https://'))
     webcam = source.isnumeric() or source.endswith('.txt') or (is_url and not is_file)
@@ -106,6 +104,7 @@ def run(
     imgsz = check_imgsz(imgsz, stride=stride)  # check image size
 
     # Dataloader
+    timer = None
     bs = 1
     if webcam:
         show_vid = check_imshow(warn=True)
@@ -118,6 +117,7 @@ def run(
             vid_stride=vid_stride
         )
         bs = len(dataset)
+        
     else:
         dataset = LoadImages(
             source,
@@ -139,6 +139,7 @@ def run(
             if hasattr(tracker_list[i].model, 'warmup'):
                 tracker_list[i].model.warmup()
     outputs = [None] * bs
+    js_logger = JsonLogger()
 
     # Run tracking
     #model.warmup(imgsz=(1 if pt else bs, 3, *imgsz))  # warmup
@@ -239,6 +240,9 @@ def run(
                         id = output[4]
                         cls = output[5]
                         conf = output[6]
+                        log = {"bbox" : bbox.tolist(), "name" : names[int(cls)],
+                               'id': int(id), "cls": cls, "conf": conf, "frame_idx" : frame_idx, "source" : source }
+                        js_logger.send(log)
 
                         if save_txt:
                             # to MOT format
@@ -308,8 +312,6 @@ def run(
     if save_txt or save_vid:
         s = f"\n{len(list((save_dir / 'tracks').glob('*.txt')))} tracks saved to {save_dir / 'tracks'}" if save_txt else ''
         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
-    if update:
-        strip_optimizer(yolo_weights)  # update model (to fix SourceChangeWarning)
 
 
 def parse_opt():
