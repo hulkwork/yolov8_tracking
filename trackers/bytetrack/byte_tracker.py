@@ -1,12 +1,6 @@
 import numpy as np
-from collections import deque
-import os
-import os.path as osp
-import copy
-import torch
-import torch.nn.functional as F
 
-from yolov8.ultralytics.yolo.utils.ops import xywh2xyxy, xyxy2xywh
+from ultralytics.yolo.utils.ops import xywh2xyxy, xyxy2xywh
 
 
 from trackers.bytetrack.kalman_filter import KalmanFilter

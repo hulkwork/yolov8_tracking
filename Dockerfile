@@ -17,9 +17,6 @@ RUN pip install --no-cache -r requirements.txt
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 
-# Clone with submodules
-RUN git clone --recurse-submodules https://github.com/mikel-brostrom/Yolov5_StrongSORT_OSNet.git /usr/src/app
-
 # ------------------------------------------------------------------------------
 
 # A docker container exits when its main process finishes, which in this case is bash.

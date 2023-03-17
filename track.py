@@ -139,7 +139,7 @@ def run(
             if hasattr(tracker_list[i].model, 'warmup'):
                 tracker_list[i].model.warmup()
     outputs = [None] * bs
-    js_logger = JsonLogger()
+    js_logger = JsonLogger(f"{source}-{tracking_method}.log")
 
     # Run tracking
     #model.warmup(imgsz=(1 if pt else bs, 3, *imgsz))  # warmup
@@ -240,8 +240,10 @@ def run(
                         id = output[4]
                         cls = output[5]
                         conf = output[6]
-                        log = {"bbox" : bbox.tolist(), "name" : names[int(cls)],
-                               'id': int(id), "cls": cls, "conf": conf, "frame_idx" : frame_idx, "source" : source }
+                        if not isinstance(bbox, list):
+                            bbox = bbox.tolist()
+                        log = {"bbox" : bbox, "name" : names[int(cls)],
+                               'id': int(id), "cls": int(cls), "conf": float(conf), "frame_idx" : frame_idx, "source" : source }
                         js_logger.send(log)
 
                         if save_txt:
