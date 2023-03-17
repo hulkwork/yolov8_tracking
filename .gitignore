@@ -23,3 +23,6 @@ val_utils/
 
 # interactive plots
 *.html
+
+# Log 
+*.log
