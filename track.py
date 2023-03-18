@@ -13,7 +13,6 @@ import platform
 import numpy as np
 from pathlib import Path
 import torch
-import torch.backends.cudnn as cudnn
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # yolov5 strongsort root directory
@@ -40,6 +39,7 @@ from ultralytics.yolo.utils.plotting import Annotator, colors, save_one_box
 
 from trackers.multi_tracker_zoo import create_tracker
 from sender.jsonlogger import JsonLogger
+from sender.szmq import ZmqLogger
 
 @torch.no_grad()
 def run(
@@ -102,9 +102,10 @@ def run(
     model = AutoBackend(yolo_weights, device=device, dnn=dnn, fp16=half)
     stride, names, pt = model.stride, model.names, model.pt
     imgsz = check_imgsz(imgsz, stride=stride)  # check image size
+    zmq_producer = ZmqLogger(ip_addr="localhost", port=5555)
 
     # Dataloader
-    timer = None
+    
     bs = 1
     if webcam:
         show_vid = check_imshow(warn=True)
@@ -140,6 +141,7 @@ def run(
                 tracker_list[i].model.warmup()
     outputs = [None] * bs
     js_logger = JsonLogger(f"{source}-{tracking_method}.log")
+    
 
     # Run tracking
     #model.warmup(imgsz=(1 if pt else bs, 3, *imgsz))  # warmup
@@ -245,6 +247,7 @@ def run(
                         log = {"bbox" : bbox, "name" : names[int(cls)],
                                'id': int(id), "cls": int(cls), "conf": float(conf), "frame_idx" : frame_idx, "source" : source }
                         js_logger.send(log)
+                        zmq_producer.send(log)
 
                         if save_txt:
                             # to MOT format
@@ -307,6 +310,10 @@ def run(
             
         # Print total time (preprocessing + inference + NMS + tracking)
         LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{sum([dt.dt for dt in dt if hasattr(dt, 'dt')]) * 1E3:.1f}ms")
+        print([d.time() for d in dt])
+        print(79*"*")
+    zmq_producer.producer.close()
+    # zmq_producer.context.term()
 
     # Print results
     t = tuple(x.t / seen * 1E3 for x in dt)  # speeds per image
