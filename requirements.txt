@@ -51,3 +51,4 @@ filterpy
 # plotly                    # for hp importance and pareto front plots
 # kaleido
 # joblib
+pyzmq
