@@ -26,3 +26,8 @@ val_utils/
 
 # Log 
 *.log
+
+*.png
+*.avi
+*.jpg
+*.mp4

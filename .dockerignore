@@ -1,0 +1,14 @@
+assets
+cache
+runs
+sender
+# interactive plots
+*.html
+
+# Log 
+*.log
+
+*.png
+*.avi
+*.jpg
+*.mp4

@@ -1,0 +1,8 @@
+FROM nvcr.io/nvidia/tritonserver:21.05-py3
+WORKDIR /app
+COPY . /app/
+RUN pip install -r /app/requirements.txt
+ENV PYTHONPATH /app/:$PYTHONPATH
+ENV PYTHONPATH /app/trackers/strongsort:$PYTHONPATH
+ENV ROOT_FOLDER /app/
+CMD [ "tritonserver", "--model-repository=/models" ]
