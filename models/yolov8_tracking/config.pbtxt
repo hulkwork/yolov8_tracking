@@ -24,6 +24,11 @@ output [
     data_type: TYPE_FP32
     dims: [ -1, 1 ]
     label_filename: "yolov5_class.txt"
+  },
+  {
+    name: "IDS"
+    data_type: TYPE_FP32
+    dims: [ -1, 1 ]
   }
 ]
 

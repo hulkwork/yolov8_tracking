@@ -1,7 +1,8 @@
 import numpy as np
 import torch
 import triton_python_backend_utils as pb_utils
-from config import INFERENCE_PARAM, MODEL_PARAM, yolov5_path
+from config import MODEL_PARAM, INFERENCE_PARAM
+from base import Yolov8Tracking, WEIGHTS
 
 
 class TritonPythonModel:
@@ -16,18 +17,16 @@ class TritonPythonModel:
         """
 
         # Load YOLOv5s
-        self.model = torch.hub.load(
-            yolov5_path, "custom", path=MODEL_PARAM["MODEL_PATH"], source="local"
-        )
+        self.model = Yolov8Tracking(
+            yolo_weights= WEIGHTS / MODEL_PARAM['MODEL'], 
+            reid_weights= WEIGHTS / MODEL_PARAM['REID_MODEL'],
+            tracking_method=MODEL_PARAM['TRACK_METHOD'],
+            imgsz=(MODEL_PARAM['IMG_SIZE'], MODEL_PARAM['IMG_SIZE']),
+            augment=False,conf_thres=INFERENCE_PARAM['INFERENCE_CONF'], iou_thres=INFERENCE_PARAM['NMS_IOU'], 
+            max_det=INFERENCE_PARAM['MAX_DET'], half=INFERENCE_PARAM['HALF'], device=MODEL_PARAM['DEVICE_ID'],
+            dnn=False, 
+            classes=None, 
 
-        # Configuration of the model
-        self.model.conf = INFERENCE_PARAM["INFERENCE_CONF"]
-        self.model.iou = INFERENCE_PARAM["NMS_IOU"]
-        self.model.agnostic = INFERENCE_PARAM["AGNOSTIC_NMS"]
-
-        # Load on CPU if needed otherwise load on the right device
-        self.model.cpu() if MODEL_PARAM["DEVICE_ID"] == "cpu" else self.model.to(
-            MODEL_PARAM["DEVICE_ID"]
         )
 
     def execute(self, requests):
@@ -65,16 +64,25 @@ class TritonPythonModel:
                 el for el in in_
             ]  # TODO: Need to investigate about the batch management
 
-            return_output = self.model(in_, size=MODEL_PARAM["IMG_SIZE"]).xyxy
+            return_output = self.model.predict(in_[0])
 
             return_output_array = np.asarray(
                 [t.detach().numpy() for t in return_output]
             )
+            # print(result[..., 0:3])
+            # print(result[..., 4])
+            # print(result[..., 5])
+            # print(result[..., 6])
+            # bbox = output[0:4]
+            # id = output[4]
+            # cls = output[5]
+            # conf = output[6]
 
             # return_output = pb_utils.Tensor("OUTPUT", return_output)
             tensor_bbx = pb_utils.Tensor("BBX", return_output_array[:, :, :4])
-            tensor_score = pb_utils.Tensor("SCORE", return_output_array[:, :, 4])
+            tensor_ids = pb_utils.Tensor("IDS", return_output_array[:, :, 4])
             tensor_class = pb_utils.Tensor("CLASS", return_output_array[:, :, 5])
+            tensor_score = pb_utils.Tensor("SCORE", return_output_array[:, :, 6])
 
             # Create InferenceResponse. You can set an error here in case
             # there was a problem with handling this inference request.
@@ -86,7 +94,7 @@ class TritonPythonModel:
 
             # inference_response = pb_utils.InferenceResponse(output_tensors=[return_output])
             inference_response = pb_utils.InferenceResponse(
-                output_tensors=[tensor_bbx, tensor_score, tensor_class]
+                output_tensors=[tensor_bbx, tensor_score, tensor_class, tensor_ids]
             )
             responses.append(inference_response)
 
